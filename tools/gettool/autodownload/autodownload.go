@@ -86,6 +86,7 @@ func untar(dir string, r io.Reader, stripPathComponents int) error {
 			}
 
 		case tar.TypeReg:
+			//nolint:gosec
 			if ferr := createFile(target, os.FileMode(header.Mode), header.ModTime, tr); ferr != nil {
 				return errors.Wrapf(ferr, "error creating file %v", target)
 			}
@@ -171,7 +172,7 @@ func Download(url, dir string, checksum map[string]string, stripPathComponents i
 
 	nextSleepTime := initialSleepTime
 
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		err := downloadInternal(url, dir, checksum, stripPathComponents)
 		if err == nil {
 			// success
@@ -213,6 +214,10 @@ type InvalidChecksumError struct {
 }
 
 func (e InvalidChecksumError) Error() string {
+	if e.expected == "" {
+		return fmt.Sprintf("missing checksum: %v", e.actual)
+	}
+
 	return fmt.Sprintf("invalid checksum: %v, wanted %v", e.actual, e.expected)
 }
 
@@ -247,7 +252,7 @@ func downloadInternal(url, dir string, checksum map[string]string, stripPathComp
 	switch {
 	case checksum[url] == "":
 		checksum[url] = actualChecksum
-		return errors.Errorf("missing checksum - calculated as %v", actualChecksum)
+		return InvalidChecksumError{actualChecksum, ""}
 
 	case checksum[url] != actualChecksum:
 		return InvalidChecksumError{actualChecksum, checksum[url]}
@@ -261,7 +266,7 @@ func downloadInternal(url, dir string, checksum map[string]string, stripPathComp
 	if strings.HasSuffix(url, ".gz") {
 		gzr, err := gzip.NewReader(&buf)
 		if err != nil {
-			return errors.Errorf("unable to gunzip response")
+			return errors.New("unable to gunzip response")
 		}
 
 		r = gzr
@@ -275,6 +280,6 @@ func downloadInternal(url, dir string, checksum map[string]string, stripPathComp
 	case strings.HasSuffix(url, ".zip"):
 		return errors.Wrap(unzip(dir, r, stripPathComponents), "unzip error")
 	default:
-		return errors.Errorf("unsupported archive format")
+		return errors.New("unsupported archive format")
 	}
 }

@@ -9,9 +9,12 @@ import (
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/ignorefs"
 	"github.com/kopia/kopia/internal/units"
+	"github.com/kopia/kopia/repo/logging"
 	"github.com/kopia/kopia/snapshot"
 	"github.com/kopia/kopia/snapshot/policy"
 )
+
+var estimateLog = logging.Module("estimate")
 
 // SampleBucket keeps track of count and total size of files above in certain size range and
 // includes small number of examples of such files.
@@ -83,6 +86,8 @@ func Estimate(ctx context.Context, entry fs.Directory, policyTree *policy.Tree, 
 	}()
 
 	onIgnoredFile := func(ctx context.Context, relativePath string, e fs.Entry, pol *policy.Tree) {
+		_ = pol
+
 		if e.IsDir() {
 			if len(ed) < maxExamplesPerBucket {
 				ed = append(ed, relativePath)
